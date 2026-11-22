@@ -1,5 +1,13 @@
 import type { Module2Repository } from '../application/ports/module2.port'
 import type { Module2ScenarioData, ScenarioType } from '../domain/models/simulation.models'
+import {
+    conjugateGradient,
+    gaussSeidel,
+    jacobi,
+    luSolve,
+    residualNorm,
+    type ConvergenceResult,
+} from '../domain/math/numerical'
 
 const SCENARIOS_DATA: Record<ScenarioType, Module2ScenarioData> = {
     NORMAL: {
@@ -192,6 +200,34 @@ const SCENARIOS_DATA: Record<ScenarioType, Module2ScenarioData> = {
 
 export class Module2MockAdapter implements Module2Repository {
     getByScenario(type: ScenarioType): Module2ScenarioData {
-        return SCENARIOS_DATA[type]
+        const scenario = SCENARIOS_DATA[type]
+        const methods: Array<[string, () => ConvergenceResult]> = [
+            ['Jacobi', () => jacobi(scenario.matrixA, scenario.vectorB, Number(type === 'ESTRES' ? 1e-12 : 1e-6), type === 'MAL_CONDICIONADO' ? 1000 : 100)],
+            ['Gauss-Seidel', () => gaussSeidel(scenario.matrixA, scenario.vectorB, Number(type === 'ESTRES' ? 1e-12 : 1e-6), type === 'MAL_CONDICIONADO' ? 1000 : 100)],
+            ['Gradiente Conjugado', () => conjugateGradient(scenario.matrixA, scenario.vectorB, type === 'ESTRES' ? 1e-12 : 1e-10, 100)],
+            ['Factorización LU', () => luSolve(scenario.matrixA, scenario.vectorB)],
+        ]
+
+        const results = methods.map(([method, execute]) => {
+            const result = execute()
+            const residual = residualNorm(scenario.matrixA, result.solution, scenario.vectorB)
+            const formatError = (value: number) => value === 0 ? '0.00 × 10⁰' : value.toExponential(2).replace('e', ' × 10^')
+            return {
+                method,
+                converged: result.converged,
+                iterations: result.iterations,
+                solution: `[${result.solution.map(value => value.toFixed(6)).join(', ')}]ᵀ`,
+                residualNorm: residual === 0 ? '0.00 × 10⁰' : formatError(residual),
+                absoluteError: formatError(result.absoluteError),
+                relativeError: formatError(result.relativeError),
+                percentageError: `${(result.percentageError).toFixed(6)}%`,
+            }
+        })
+
+        return {
+            ...scenario,
+            results,
+            numericalConclusion: `${scenario.numericalConclusion} Los cálculos fueron ejecutados por el motor numérico de la aplicación.`,
+        }
     }
 }
