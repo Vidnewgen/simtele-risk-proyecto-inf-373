@@ -1,5 +1,13 @@
-import type { Module2ScenarioData, ScenarioType } from '@/domain/models/simulation.models'
+import type {
+    Module2Run,
+    Module2ScenarioData,
+    ScenarioType,
+    SimulationSummary,
+} from '@/domain/models/simulation.models'
 
 export interface Module2Repository {
-    getByScenario(type: ScenarioType): Promise<Module2ScenarioData>
+    run(type: ScenarioType): Promise<Module2Run>
+    save(run: Module2Run, label?: string): Promise<number>
+    list(): Promise<SimulationSummary[]>
+    load(id: number): Promise<Module2ScenarioData>
 }

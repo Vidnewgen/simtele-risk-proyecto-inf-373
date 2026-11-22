@@ -9,6 +9,8 @@ export interface SolveResult {
     timeMs: number
 }
 
+export type IterCallback = (k: number, x: Vector, residual: number) => void
+
 const at = (a: readonly number[], i: number): number => a[i] as number
 const rowOf = (A: Matrix, i: number): number[] => A[i] as number[]
 const dot = (a: Vector, b: Vector): number => a.reduce((s, v, i) => s + v * at(b, i), 0)
@@ -24,7 +26,13 @@ export const residualNorm = (A: Matrix, b: Vector, x: Vector): number => {
 export const isSymmetric = (A: Matrix, eps = 1e-12): boolean =>
     A.every((row, i) => row.every((a, j) => Math.abs(a - at(rowOf(A, j), i)) <= eps))
 
-export function jacobi(A: Matrix, b: Vector, tol: number, maxIter: number): SolveResult {
+export function jacobi(
+    A: Matrix,
+    b: Vector,
+    tol: number,
+    maxIter: number,
+    onIter?: IterCallback,
+): SolveResult {
     const t0 = performance.now()
     const n = b.length
     let x: Vector = new Array(n).fill(0)
@@ -41,12 +49,19 @@ export function jacobi(A: Matrix, b: Vector, tol: number, maxIter: number): Solv
         if (!Number.isFinite(r) || !x.every(Number.isFinite)) {
             return { x: null, converged: false, iterations: k, timeMs: performance.now() - t0 }
         }
+        onIter?.(k, x, r)
         if (r < tol) return { x, converged: true, iterations: k, timeMs: performance.now() - t0 }
     }
     return { x, converged: false, iterations: maxIter, timeMs: performance.now() - t0 }
 }
 
-export function gaussSeidel(A: Matrix, b: Vector, tol: number, maxIter: number): SolveResult {
+export function gaussSeidel(
+    A: Matrix,
+    b: Vector,
+    tol: number,
+    maxIter: number,
+    onIter?: IterCallback,
+): SolveResult {
     const t0 = performance.now()
     const n = b.length
     const x: Vector = new Array(n).fill(0)
@@ -61,6 +76,7 @@ export function gaussSeidel(A: Matrix, b: Vector, tol: number, maxIter: number):
         if (!Number.isFinite(r) || !x.every(Number.isFinite)) {
             return { x: null, converged: false, iterations: k, timeMs: performance.now() - t0 }
         }
+        onIter?.(k, x, r)
         if (r < tol) return { x: [...x], converged: true, iterations: k, timeMs: performance.now() - t0 }
     }
     return { x: [...x], converged: false, iterations: maxIter, timeMs: performance.now() - t0 }
@@ -108,7 +124,13 @@ export function luSolve(A: Matrix, b: Vector): SolveResult {
 }
 
 /** Gradiente conjugado estándar: exige A simétrica definida positiva. */
-export function conjugateGradient(A: Matrix, b: Vector, tol: number, maxIter: number): SolveResult {
+export function conjugateGradient(
+    A: Matrix,
+    b: Vector,
+    tol: number,
+    maxIter: number,
+    onIter?: IterCallback,
+): SolveResult {
     const t0 = performance.now()
     if (!isSymmetric(A)) {
         return { x: null, converged: false, iterations: 0, timeMs: performance.now() - t0 }
@@ -118,7 +140,9 @@ export function conjugateGradient(A: Matrix, b: Vector, tol: number, maxIter: nu
     let r: Vector = [...b]
     let p: Vector = [...r]
     let rs = dot(r, r)
-    if (Math.sqrt(rs) < tol) return { x, converged: true, iterations: 0, timeMs: performance.now() - t0 }
+    if (Math.sqrt(rs) < tol) {
+        return { x, converged: true, iterations: 0, timeMs: performance.now() - t0 }
+    }
 
     for (let k = 1; k <= maxIter; k++) {
         const Ap = matVec(A, p)
@@ -130,6 +154,7 @@ export function conjugateGradient(A: Matrix, b: Vector, tol: number, maxIter: nu
         x = x.map((xi, i) => xi + alpha * at(p, i))
         r = r.map((ri, i) => ri - alpha * at(Ap, i))
         const rsNew = dot(r, r)
+        onIter?.(k, x, Math.sqrt(rsNew))
         if (Math.sqrt(rsNew) < tol) {
             return { x, converged: true, iterations: k, timeMs: performance.now() - t0 }
         }
@@ -146,7 +171,8 @@ export function conjugateGradient(A: Matrix, b: Vector, tol: number, maxIter: nu
  */
 export function conditionNumberSPD(A: Matrix): number | null {
     const n = A.length
-    const start = (): Vector => Array.from({ length: n }, (_, i) => Math.cos(1.7 * i + 0.3) + 0.1 * i)
+    const start = (): Vector =>
+        Array.from({ length: n }, (_, i) => Math.cos(1.7 * i + 0.3) + 0.1 * i)
     const normalize = (v: Vector): Vector => {
         const m = norm2(v)
         return v.map((a) => a / m)
@@ -157,7 +183,10 @@ export function conditionNumberSPD(A: Matrix): number | null {
     for (let it = 0; it < 5000; it++) {
         v = normalize(matVec(A, v))
         const l = dot(v, matVec(A, v))
-        if (Math.abs(l - lmax) <= 1e-14 * Math.abs(l)) { lmax = l; break }
+        if (Math.abs(l - lmax) <= 1e-14 * Math.abs(l)) {
+            lmax = l
+            break
+        }
         lmax = l
     }
 
@@ -168,7 +197,10 @@ export function conditionNumberSPD(A: Matrix): number | null {
         if (!w) return null
         u = normalize(w)
         const l = dot(u, matVec(A, u))
-        if (Math.abs(l - lmin) <= 1e-14 * Math.abs(l)) { lmin = l; break }
+        if (Math.abs(l - lmin) <= 1e-14 * Math.abs(l)) {
+            lmin = l
+            break
+        }
         lmin = l
     }
     return lmin > 0 ? lmax / lmin : null

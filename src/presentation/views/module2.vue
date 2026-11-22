@@ -1,18 +1,21 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { GetModule2ScenarioUseCase } from '@/application/use-cases/get-module2-scenario.use-case'
-import { Module2MockAdapter } from '@/infrastructure/module2.mock.adapter'
+import { SaveModule2SimulationUseCase } from '@/application/use-cases/save-module2-simulation.use-case'
+import { Module2PostgrestAdapter } from '@/infrastructure/module2.postgrest.adapter'
 import {
   METHOD_LABELS,
-  type Module2ScenarioData,
   type MethodResult,
+  type Module2Run,
   type ScenarioType,
 } from '@/domain/models/simulation.models'
 import { formatPercent, formatSci, formatVector } from '@/presentation/utils/format'
 
 const router = useRouter()
-const getScenarioUseCase = new GetModule2ScenarioUseCase(new Module2MockAdapter())
+const repo = new Module2PostgrestAdapter()
+const getScenarioUseCase = new GetModule2ScenarioUseCase(repo)
+const saveUseCase = new SaveModule2SimulationUseCase(repo)
 
 const scenarios: { type: ScenarioType; label: string }[] = [
   { type: 'NORMAL', label: 'NORMAL' },
@@ -21,8 +24,11 @@ const scenarios: { type: ScenarioType; label: string }[] = [
 ]
 
 const selected = ref<ScenarioType>('NORMAL')
-const current = ref<Module2ScenarioData | null>(null)
+const run = ref<Module2Run | null>(null)
+const current = computed(() => run.value?.data ?? null)
 const loading = ref(false)
+const saving = ref(false)
+const savedId = ref<number | null>(null)
 const error = ref('')
 
 watch(
@@ -30,9 +36,10 @@ watch(
   async (type) => {
     loading.value = true
     error.value = ''
+    savedId.value = null
     try {
-      const data = await getScenarioUseCase.execute(type)
-      if (selected.value === type) current.value = data // evita respuestas fuera de orden
+      const r = await getScenarioUseCase.execute(type)
+      if (selected.value === type) run.value = r // evita respuestas fuera de orden
     } catch (e) {
       error.value = (e as Error).message
     } finally {
@@ -41,6 +48,19 @@ watch(
   },
   { immediate: true },
 )
+
+async function guardar() {
+  if (!run.value) return
+  saving.value = true
+  error.value = ''
+  try {
+    savedId.value = await saveUseCase.execute(run.value, `M2 ${selected.value}`)
+  } catch (e) {
+    error.value = (e as Error).message
+  } finally {
+    saving.value = false
+  }
+}
 
 const statusOf = (r: MethodResult): string =>
   r.converged ? 'Convergió' : r.solution === null ? 'Divergió' : 'No convergió (máx. iter.)'
@@ -63,12 +83,21 @@ const statusOf = (r: MethodResult): string =>
     <p v-if="loading && !current">Calculando…</p>
 
     <template v-if="current">
+      <div class="save-bar">
+        <button :disabled="saving" @click="guardar">
+          {{ saving ? 'Guardando…' : 'Guardar simulación' }}
+        </button>
+        <span v-if="savedId !== null">Guardada con id #{{ savedId }}</span>
+      </div>
+
       <section class="panel">
         <h3>{{ current.title }}</h3>
         <p>{{ current.description }}</p>
         <div class="metrics-bar">
-          <span><strong>κ₂(A):</strong> {{ current.conditionNumber === null ? '—' :
-            current.conditionNumber.toPrecision(6) }}</span>
+          <span>
+            <strong>κ₂(A):</strong>
+            {{ current.conditionNumber === null ? '—' : current.conditionNumber.toPrecision(6) }}
+          </span>
           <span><strong>Tolerancia:</strong> {{ formatSci(current.tolerance, 1) }}</span>
           <span><strong>Máx. iteraciones:</strong> {{ current.maxIterations }}</span>
         </div>
@@ -166,7 +195,7 @@ const statusOf = (r: MethodResult): string =>
 .btn-group {
   display: flex;
   gap: 0.5rem;
-  margin-bottom: 1.5rem;
+  margin-bottom: 1rem;
 }
 
 .btn-group button {
@@ -182,6 +211,29 @@ const statusOf = (r: MethodResult): string =>
   background: #0f172a;
   color: #fff;
   border-color: #0f172a;
+}
+
+.save-bar {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.save-bar button {
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 6px;
+  background: #0f172a;
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.save-bar button:disabled {
+  background: #cbd5e1;
+  color: #64748b;
+  cursor: not-allowed;
 }
 
 .panel {
