@@ -18,8 +18,10 @@ Plataforma web integrada para el análisis, simulación y cuantificación de rie
 - **Estado actual (Avance Semana 1):**
   - Estructura del proyecto en **Vue 3 + Vite + TypeScript** organizada bajo **Arquitectura Limpia (Clean Architecture)** (`domain`, `application`, `presentation`, `router`).
   - **Vista Principal (`HomeView`):** Panel de inicio con las cuatro tarjetas de los módulos obligatorios del sistema.
-  - **Módulo 2 — Deterioro Mecánico y Mantenimiento (`Module2View`):** Caso piloto implementado con selector interactivo para los tres escenarios experimentales (`NORMAL`, `ESTRÉS` y `MAL CONDICIONADO`), tablas comparativas de convergencia (Jacobi, Gauss-Seidel, Factorización LU y Gradiente Conjugado), métricas de error transversal y conclusiones diferenciadas.
-  - **Módulos 1, 3 y 4:** Modelado matemático y definición de escenarios documentados en el informe de avance; integración algorítmica programada para la Semana 2.
+  - **Módulo 2 — Deterioro Mecánico y Mantenimiento (`Module2View`):** Escenarios `NORMAL`, `ESTRÉS` y `MAL CONDICIONADO`, Jacobi, Gauss-Seidel, LU y gradiente conjugado, raíz cuadrática de deterioro y métricas de error.
+  - **Módulo 1 — Detención:** bisección, trapecio y RK4 con referencia analítica.
+  - **Módulo 3 — Oscilaciones por viento:** sistema RK4 y evaluación de desplazamiento y energía.
+  - **Módulo 4 — Sensores:** reconstrucción por Lagrange y error respecto a puntos ocultos.
 
 ---
 
@@ -29,15 +31,18 @@ Plataforma web integrada para el análisis, simulación y cuantificación de rie
 src/
 ├── domain/                          # Modelos puros, entidades y reglas matemáticas
 │   ├── models/
-│   │   └── simulation.model.ts      # Contratos de escenarios, métodos y métricas de error
+│   │   ├── simulation.models.ts     # Contratos de escenarios y métricas
+│   │   └── four-module-models.ts    # Modelos de los módulos 1, 3 y 4
 │   └── math/                        # Motor numérico transversal (en desarrollo)
 ├── application/                     # Casos de uso y servicios de datos
-│   └── services/
-│       └── module2.service.ts       # Escenarios y resultados de referencia del Módulo 2
+│   ├── use-cases/
+│   ├── persistence/
+│   └── ports/
 ├── presentation/                    # Capa de interfaz gráfica (Vue 3)
 │   └── views/
 │       ├── HomeView.vue             # Panel principal con los 4 casos de estudio
-│       └── Module2View.vue          # Simulador y tablas del Módulo 2
+│       ├── module2.vue              # Simulador y tablas del Módulo 2
+│       └── module-model.vue         # Vistas dinámicas de los módulos 1, 3 y 4
 ├── router/
 │   └── index.ts                     # Configuración de rutas SPA
 ├── App.vue
@@ -101,4 +106,10 @@ npm run dev
 
 ```sh
 npm run build
+```
+
+### Ejecutar pruebas
+
+```sh
+npm test
 ```
