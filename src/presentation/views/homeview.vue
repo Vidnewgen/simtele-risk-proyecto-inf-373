@@ -11,7 +11,7 @@ const modules = [
     description: 'Análisis de tiempo y distancia de frenado de cabinas ante desaceleración constante y variable.',
     status: 'Modelo Activo (S1)',
     active: true,
-    route: '/modulo/1',
+    route: '/modulo-1',
   },
   {
     id: 2,
@@ -29,7 +29,7 @@ const modules = [
     description: 'Respuesta dinámica lateral de cabinas ante ráfagas de viento y energía acumulada.',
     status: 'Modelo Activo (S1)',
     active: true,
-    route: '/modulo/3',
+    route: '/modulo-3',
   },
   {
     id: 4,
@@ -38,7 +38,7 @@ const modules = [
     description: 'Recuperación de telemetría perdida y estabilidad frente a ruido instrumental.',
     status: 'Modelo Activo (S1)',
     active: true,
-    route: '/modulo/4',
+    route: '/modulo-4',
   },
 ];
 </script>

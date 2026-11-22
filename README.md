@@ -56,6 +56,15 @@ src/
 
 ## Guía de Inicio Rápido en Git (`develop`)
 
+## Rutas de los módulos
+
+- `/modulo-1`
+- `/modulo-2`
+- `/modulo-3`
+- `/modulo-4`
+
+Las rutas anteriores `/modulo/1`, `/modulo/3` y `/modulo/4` redirigen automáticamente a su formato unificado.
+
 1. **Clonar el repositorio y cambiar a la rama de desarrollo:**
    ```sh
    git clone https://github.com/TU_USUARIO/simtele-risk.git

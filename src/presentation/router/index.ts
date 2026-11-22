@@ -20,19 +20,31 @@ const router = createRouter({
       component: Module2View,
     },
     {
-      path: '/modulo/1',
+      path: '/modulo-1',
       name: 'module1',
       component: Module1View,
     },
     {
-      path: '/modulo/3',
+      path: '/modulo-3',
       name: 'module3',
       component: Module3View,
     },
     {
-      path: '/modulo/4',
+      path: '/modulo-4',
       name: 'module4',
       component: Module4View,
+    },
+    {
+      path: '/modulo/1',
+      redirect: '/modulo-1',
+    },
+    {
+      path: '/modulo/3',
+      redirect: '/modulo-3',
+    },
+    {
+      path: '/modulo/4',
+      redirect: '/modulo-4',
     },
     {
       path: '/modulo/:moduleId',
