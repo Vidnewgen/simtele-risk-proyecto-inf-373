@@ -1,197 +1,159 @@
-import type { Module2Repository } from '../application/ports/module2.port'
-import type { Module2ScenarioData, ScenarioType } from '../domain/models/simulation.models'
+import type { Module2Repository } from '@/application/ports/module2.port'
+import {
+    METHOD_LABELS,
+    type MethodCode,
+    type MethodResult,
+    type Module2ScenarioData,
+    type ScenarioType,
+} from '@/domain/models/simulation.models'
+import { absoluteError, percentageError, relativeError, type Vector } from '@/domain/math/errors'
+import {
+    conditionNumberSPD,
+    conjugateGradient,
+    gaussSeidel,
+    jacobi,
+    luSolve,
+    matVec,
+    residualNorm,
+    type Matrix,
+    type SolveResult,
+} from '@/domain/math/linear'
 
-const SCENARIOS_DATA: Record<ScenarioType, Module2ScenarioData> = {
-    NORMAL: {
-        type: 'NORMAL',
-        title: 'Escenario Normal — Matriz SPD Tridiagonal Bien Condicionada',
+const TRIDIAGONAL: Matrix = [
+    [4, 1, 0, 0],
+    [1, 4, 1, 0],
+    [0, 1, 4, 1],
+    [0, 0, 1, 4],
+]
+
+const hilbert = (n: number): Matrix =>
+    Array.from({ length: n }, (_, i) => Array.from({ length: n }, (_, j) => 1 / (i + j + 1)))
+
+const MAX_ITER = 10000
+
+function toResult(method: MethodCode, r: SolveResult, A: Matrix, b: Vector, xRef: Vector): MethodResult {
+    if (!r.x) {
+        return {
+            method, converged: false, iterations: r.iterations, solution: null,
+            residualNorm: null, absoluteError: null, relativeError: null,
+            percentageError: null, timeMs: r.timeMs,
+        }
+    }
+    const rel = relativeError(r.x, xRef)
+    return {
+        method,
+        converged: r.converged,
+        iterations: r.iterations,
+        solution: r.x,
+        residualNorm: residualNorm(A, b, r.x),
+        absoluteError: absoluteError(r.x, xRef),
+        relativeError: rel,
+        percentageError: percentageError(rel),
+        timeMs: r.timeMs,
+    }
+}
+
+function buildNumericalConclusion(results: MethodResult[], kappa: number | null): string {
+    const parts: string[] = [`κ₂(A) = ${kappa === null ? 'no disponible' : kappa.toPrecision(5)}.`]
+
+    const best = results
+        .filter((r) => r.converged && r.method !== 'LU')
+        .sort((a, b) => a.iterations - b.iterations)[0]
+    if (best) {
+        parts.push(
+            `Entre los iterativos que convergieron, ${METHOD_LABELS[best.method]} necesitó menos iteraciones (${best.iterations}).`,
+        )
+    }
+    const diverged = results.filter((r) => r.solution === null).map((r) => METHOD_LABELS[r.method])
+    if (diverged.length) parts.push(`Divergió: ${diverged.join(', ')}.`)
+    const stalled = results
+        .filter((r) => !r.converged && r.solution !== null)
+        .map((r) => METHOD_LABELS[r.method])
+    if (stalled.length) parts.push(`No alcanzó la tolerancia en el máximo de iteraciones: ${stalled.join(', ')}.`)
+    return parts.join(' ')
+}
+
+interface ScenarioConfig {
+    title: string
+    description: string
+    A: Matrix
+    b: Vector
+    xRef: Vector
+    tolerance: number
+    problemConclusion: string
+}
+
+function buildConfig(type: ScenarioType): ScenarioConfig {
+    if (type === 'NORMAL') {
+        const xRef = [1, 2, 2, 1]
+        return {
+            title: 'Escenario Normal — Matriz SPD tridiagonal bien condicionada',
+            description:
+                'Calibración nominal de D(t) = D₀ + α·t + β·t² con una matriz simétrica definida positiva y diagonal dominante. Datos sintéticos con x* conocido (b = A·x*).',
+            A: TRIDIAGONAL,
+            b: matVec(TRIDIAGONAL, xRef),
+            xRef,
+            tolerance: 1e-6,
+            problemConclusion:
+                'Con un sistema bien condicionado, los coeficientes calibrados son estables. Es un caso sintético: no permite inferir el desgaste de equipos reales.',
+        }
+    }
+    if (type === 'ESTRES') {
+        const b = matVec(TRIDIAGONAL, [1, 2, 2, 1])
+        b[0] = (b[0] as number) * 1.05 // perturbación de +5 % sobre b₁
+        return {
+            title: 'Escenario Estrés — Perturbación +5 % en b₁ y tolerancia estricta',
+            description:
+                'Tolerancia 10⁻¹² y perturbación del +5 % en b₁. La referencia es la solución directa del sistema perturbado (LU), por lo que el error de LU es trivial en este escenario.',
+            A: TRIDIAGONAL,
+            b,
+            xRef: luSolve(TRIDIAGONAL, b).x as Vector,
+            tolerance: 1e-12,
+            problemConclusion:
+                'Con κ₂ bajo, una perturbación del 5 % en una medición produce un cambio acotado en los coeficientes. Una alta exigencia numérica no implica mal condicionamiento.',
+        }
+    }
+    const A = hilbert(4)
+    const xRef = [1, 1, 1, 1]
+    return {
+        title: 'Escenario Mal condicionado — Matriz de Hilbert H₄',
         description:
-            'Calibración nominal de parámetros de desgaste D(t) = D₀ + α·t + β·t² con matriz simétrica definida positiva estrictamente dominante por diagonal.',
-        conditionNumber: '2.6180',
-        tolerance: '1.0 × 10⁻⁶',
-        matrixA: [
-            [4, 1, 0, 0],
-            [1, 4, 1, 0],
-            [0, 1, 4, 1],
-            [0, 0, 1, 4],
-        ],
-        vectorB: [6, 11, 11, 6],
-        exactSolution: [1, 2, 2, 1],
-        results: [
-            {
-                method: 'Jacobi',
-                converged: true,
-                iterations: 15,
-                solution: '[0.999999, 1.999998, 1.999998, 0.999999]ᵀ',
-                residualNorm: '1.84 × 10⁻⁶',
-                absoluteError: '2.41 × 10⁻⁶',
-                relativeError: '7.62 × 10⁻⁷',
-                percentageError: '0.000076%',
-            },
-            {
-                method: 'Gauss-Seidel',
-                converged: true,
-                iterations: 8,
-                solution: '[0.999999, 2.000000, 2.000000, 1.000000]ᵀ',
-                residualNorm: '8.72 × 10⁻⁷',
-                absoluteError: '1.15 × 10⁻⁶',
-                relativeError: '3.64 × 10⁻⁷',
-                percentageError: '0.000036%',
-            },
-            {
-                method: 'Gradiente Conjugado',
-                converged: true,
-                iterations: 2,
-                solution: '[1.000000, 2.000000, 2.000000, 1.000000]ᵀ',
-                residualNorm: '3.93 × 10⁻¹⁶',
-                absoluteError: '0.00 × 10⁰',
-                relativeError: '0.00 × 10⁰',
-                percentageError: '0.00%',
-            },
-            {
-                method: 'Factorización LU',
-                converged: true,
-                iterations: 1,
-                solution: '[1.000000, 2.000000, 2.000000, 1.000000]ᵀ',
-                residualNorm: '0.00 × 10⁰',
-                absoluteError: '0.00 × 10⁰',
-                relativeError: '0.00 × 10⁰',
-                percentageError: '0.00%',
-            },
-        ],
-        numericalConclusion:
-            'En sistemas SPD bien condicionadas (κ₂ = 2.6180), Gradiente Conjugado alcanza precisión de máquina en 2 iteraciones, superando a Gauss-Seidel (8) y Jacobi (15).',
+            'Subexperimento numérico con H₄ (SPD, sin dominancia diagonal, κ₂ ≈ 1.55 × 10⁴) para distinguir mal condicionamiento de falta de convergencia.',
+        A,
+        b: matVec(A, xRef),
+        xRef,
+        tolerance: 1e-6,
         problemConclusion:
-            'Los coeficientes calibrados son estables y permiten proyectar de manera confiable el umbral crítico de inspección preventiva en t* ≈ 58.62 meses.',
-    },
-    ESTRES: {
-        type: 'ESTRES',
-        title: 'Escenario de Estrés — Perturbación +5% en Mediciones y Tolerancia Estricta',
-        description:
-            'Exigencia numérica con tolerancia ε = 10⁻¹² y perturbación externa del +5% sobre b₁ (b_pert = [6.3, 11, 11, 6]ᵀ) para evaluar propagación de error.',
-        conditionNumber: '2.6180',
-        tolerance: '1.0 × 10⁻¹²',
-        matrixA: [
-            [4, 1, 0, 0],
-            [1, 4, 1, 0],
-            [0, 1, 4, 1],
-            [0, 0, 1, 4],
-        ],
-        vectorB: [6.3, 11, 11, 6],
-        exactSolution: [1.080357, 1.978571, 2.005357, 0.998661],
-        results: [
-            {
-                method: 'Jacobi',
-                converged: true,
-                iterations: 32,
-                solution: '[1.080357, 1.978571, 2.005357, 0.998661]ᵀ',
-                residualNorm: '7.12 × 10⁻¹³',
-                absoluteError: '9.35 × 10⁻¹³',
-                relativeError: '2.94 × 10⁻¹³',
-                percentageError: '0.00%',
-            },
-            {
-                method: 'Gauss-Seidel',
-                converged: true,
-                iterations: 18,
-                solution: '[1.080357, 1.978571, 2.005357, 0.998661]ᵀ',
-                residualNorm: '3.48 × 10⁻¹³',
-                absoluteError: '4.61 × 10⁻¹³',
-                relativeError: '1.45 × 10⁻¹³',
-                percentageError: '0.00%',
-            },
-            {
-                method: 'Gradiente Conjugado',
-                converged: true,
-                iterations: 4,
-                solution: '[1.080357, 1.978571, 2.005357, 0.998661]ᵀ',
-                residualNorm: '1.10 × 10⁻¹⁵',
-                absoluteError: '1.42 × 10⁻¹⁵',
-                relativeError: '4.47 × 10⁻¹⁶',
-                percentageError: '0.00%',
-            },
-            {
-                method: 'Factorización LU',
-                converged: true,
-                iterations: 1,
-                solution: '[1.080357, 1.978571, 2.005357, 0.998661]ᵀ',
-                residualNorm: '0.00 × 10⁰',
-                absoluteError: '0.00 × 10⁰',
-                relativeError: '0.00 × 10⁰',
-                percentageError: '0.00%',
-            },
-        ],
-        numericalConclusion:
-            'Al exigir ε = 10⁻¹², Jacobi y Gauss-Seidel duplican sus iteraciones (32 y 18), mientras Gradiente Conjugado converge exactamente en n = 4 pasos.',
-        problemConclusion:
-            'Debido al bajo número de condición (κ₂ = 2.6180), una variación del 5% en las lecturas de sensores produce un cambio acotado en los parámetros sin comprometer la decisión de mantenimiento.',
-    },
-    MAL_CONDICIONADO: {
-        type: 'MAL_CONDICIONADO',
-        title: 'Escenario Mal Condicionado — Matriz de Hilbert H₄ (κ₂ ≈ 15,513.74)',
-        description:
-            'Subexperimento numérico con matriz de Hilbert 4×4 (SPD pero sin dominancia diagonal y con número de condición elevado) para distinguir mal condicionamiento de fallo de convergencia.',
-        conditionNumber: '15,513.74',
-        tolerance: '1.0 × 10⁻⁶',
-        matrixA: [
-            [1, 0.5, 0.3333, 0.25],
-            [0.5, 0.3333, 0.25, 0.2],
-            [0.3333, 0.25, 0.2, 0.1667],
-            [0.25, 0.2, 0.1667, 0.1429],
-        ],
-        vectorB: [2.0833, 1.2833, 0.95, 0.7595],
-        exactSolution: [1, 1, 1, 1],
-        results: [
-            {
-                method: 'Jacobi',
-                converged: false,
-                iterations: 1000,
-                solution: 'Divergente (ρ > 1)',
-                residualNorm: '∞',
-                absoluteError: '∞',
-                relativeError: '∞',
-                percentageError: 'Diverge',
-            },
-            {
-                method: 'Gauss-Seidel',
-                converged: true,
-                iterations: 482,
-                solution: '[0.999812, 1.002145, 0.996810, 1.001012]ᵀ',
-                residualNorm: '9.81 × 10⁻⁷',
-                absoluteError: '4.02 × 10⁻³',
-                relativeError: '2.01 × 10⁻³',
-                percentageError: '0.201%',
-            },
-            {
-                method: 'Gradiente Conjugado',
-                converged: true,
-                iterations: 4,
-                solution: '[1.000000, 1.000000, 1.000000, 1.000000]ᵀ',
-                residualNorm: '1.12 × 10⁻¹⁴',
-                absoluteError: '3.45 × 10⁻¹³',
-                relativeError: '1.72 × 10⁻¹³',
-                percentageError: '0.00%',
-            },
-            {
-                method: 'Factorización LU',
-                converged: true,
-                iterations: 1,
-                solution: '[1.000000, 0.999999, 1.000001, 1.000000]ᵀ',
-                residualNorm: '4.15 × 10⁻¹⁵',
-                absoluteError: '1.28 × 10⁻¹²',
-                relativeError: '6.40 × 10⁻¹³',
-                percentageError: '0.00%',
-            },
-        ],
-        numericalConclusion:
-            'Jacobi diverge por radio espectral ρ > 1 y Gauss-Seidel requiere 482 iteraciones; Gradiente Conjugado y LU mantienen precisión pero exhiben sensibilidad extrema de hasta 10⁴ ante perturbaciones.',
-        problemConclusion:
-            'Si el muestreo en campo genera matrices mal condicionadas, el ruido mínimo de telemetría invalida la proyección de desgaste del cable, exigiendo regularización previa.',
-    },
-};
+            'Si los datos de calibración generan un sistema así, errores pequeños en los datos pueden amplificarse hasta κ₂ veces. Un residuo pequeño no garantiza un error pequeño.',
+    }
+}
 
 export class Module2MockAdapter implements Module2Repository {
-    getByScenario(type: ScenarioType): Module2ScenarioData {
-        return SCENARIOS_DATA[type]
+    async getByScenario(type: ScenarioType): Promise<Module2ScenarioData> {
+        const cfg = buildConfig(type)
+        const { A, b, xRef, tolerance } = cfg
+        const kappa = conditionNumberSPD(A)
+
+        const results: MethodResult[] = [
+            toResult('JACOBI', jacobi(A, b, tolerance, MAX_ITER), A, b, xRef),
+            toResult('GAUSS_SEIDEL', gaussSeidel(A, b, tolerance, MAX_ITER), A, b, xRef),
+            toResult('GRADIENTE_CONJUGADO', conjugateGradient(A, b, tolerance, MAX_ITER), A, b, xRef),
+            toResult('LU', luSolve(A, b), A, b, xRef),
+        ]
+
+        return {
+            type,
+            title: cfg.title,
+            description: cfg.description,
+            conditionNumber: kappa,
+            tolerance,
+            maxIterations: MAX_ITER,
+            matrixA: A,
+            vectorB: b,
+            exactSolution: xRef,
+            results,
+            numericalConclusion: buildNumericalConclusion(results, kappa),
+            problemConclusion: cfg.problemConclusion,
+        }
     }
 }
