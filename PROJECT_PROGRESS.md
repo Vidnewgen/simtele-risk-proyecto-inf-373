@@ -1,7 +1,8 @@
 # SIMTELE-RISK — PROJECT PROGRESS
 
 ## Estado general
-- Semana activa: 1
+- Semana activa: 2
+- Infraestructura Docker disponible y saludable: PostgreSQL 17, PostgREST y Adminer.
 - Última auditoría: 2026-11-21
 - Segunda auditoría: 4.50 / 6
 - Auditoría gráfica verificada: 5.25 / 6
@@ -14,9 +15,9 @@
 - [~] Aplicación, DER y GitHub (0.75 / 1 pt)
 
 ## Semana 2 — 9 puntos
-- [ ] Métodos numéricos (5 pts)
-- [ ] Escenarios, tablas y validación (2 pts)
-- [ ] Persistencia e historial (2 pts)
+- [x] Métodos numéricos (5.00 / 5 pts)
+- [x] Escenarios, tablas y validación (2.00 / 2 pts)
+- [x] Persistencia e historial (2.00 / 2 pts)
 
 ## Semana 3 — 10 puntos
 - [ ] Validación de escenarios (4 pts)
@@ -25,6 +26,28 @@
 - [ ] GitHub, video y defensa (2 pts)
 
 ## Último trabajo verificado
+- `npm test`: 3 archivos y 16 pruebas aprobadas.
+- `npm test`: 5 archivos y 25 pruebas aprobadas.
+- `npm run build`: type-check y compilación Vite aprobados.
+- Implementados motores y casos de uso independientes para M1, M3 y M4.
+- Añadidos formularios editables de parámetros en M1, M3 y M4.
+- Verificados 28 pruebas y compilación completa.
+- Auditoría corregida de Semana 2: 8.75 / 9 puntos estimados.
+- Auditoría con persistencia independiente: 9.00 / 9 puntos estimados.
+- Persistencia PostgreSQL independiente implementada y comprobada en M1, M3 y M4.
+- Migración 006 con parámetros y fuentes sintéticas de M1, M3 y M4 aplicada a Docker.
+- Persistencia end-to-end probada en PostgreSQL/PostgREST: simulación NORMAL creada como `#1`, siete ejecuciones de métodos y relanzamiento con 0 diferencia máxima.
+- Los módulos 1, 3 y 4 tienen al menos dos gráficas SVG independientes.
+- Referencias independientes probadas en los tres escenarios de los módulos 1, 3 y 4.
+- Persistencia CRUD independiente verificada en M1, M3 y M4 desde PostgreSQL/PostgREST.
+- Simulaciones reales persistidas: M1 #2, M3 #3, M4 #4 y M2 #1.
+- Relanzamiento independiente probado en M1 con mensaje «Reproducción exacta dentro de la representación almacenada».
+- Interpolación agregada: Lagrange, Newton por diferencias divididas y spline cúbico natural.
+- Pruebas verificadas: 21 pruebas aprobadas en 4 archivos.
+- Las rutas `/modulo-1`, `/modulo-2`, `/modulo-3` y `/modulo-4` respondieron HTTP 200 en preview.
+- Añadida Romberg con refinamiento, tabla triangular y criterio de convergencia.
+- El módulo 1 compara trapecio compuesto, Simpson 1/3 y Romberg contra la distancia analítica.
+- Prueba verificada: `romberg(x², 0, 1)` converge a `1/3`.
 - `npm test`: 3 archivos y 15 pruebas aprobadas.
 - `npm run build`: type-check y compilación Vite aprobados.
 - Implementado el umbral cuadrático del módulo 2 y probado con los tres escenarios.
@@ -47,22 +70,27 @@
 ## Archivos de respaldo
 - `src/domain/math/numerical.ts`
 - `src/domain/math/numerical.test.ts`
+- `src/domain/math/roots.ts`
 - `src/domain/models/four-module-models.ts`
 - `src/domain/models/four-module-models.test.ts`
 - `src/application/persistence/local-history.ts`
 - `src/application/persistence/local-history.test.ts`
+- `src/application/persistence/module-run.types.ts`
+- `src/application/persistence/module-run.use-cases.ts`
+- `src/application/ports/module-run.port.ts`
+- `src/infrastructure/module-run.postgrest.adapter.ts`
+- `src/infrastructure/database/migrations/006_week2_modules_parameters.sql`
 - `src/infrastructure/module2.mock.adapter.ts`
-- `src/presentation/views/module-model.vue`
+- `src/presentation/views/module1.vue`
 - `src/presentation/views/module2.vue`
+- `src/presentation/views/module3.vue`
+- `src/presentation/views/module4.vue`
 - `src/presentation/router/index.ts`
 
 ## Problemas conocidos
-- Los cambios de esta corrección no están publicados en GitHub; solo existe publicado el estado previo de `abadRama`.
+- No quedan pendientes numéricos ni de persistencia de la Semana 2; antes de Semana 3 falta formalizar la hoja escrita 3×4.
+- Los cambios actuales siguen sin commit ni publicación.
 - Sensibilidad numérica integrada en la visualización del Módulo 2: normal sin perturbación, estrés con factor relativo calculado y mal condicionado con κ₂(A).
-- Falta Newton-Raphson, secante, Newton por diferencias divididas, splines y Romberg para completar Semana 2.
-- Queda pendiente validar formalmente escenarios ESTRÉS y MAL CONDICIONADO con referencias independientes.
-- DER, SQL y migraciones no fueron incluidos en esta fase.
-- README no fue modificado en esta fase.
 
 ## Siguiente tarea
-Completar referencias independientes de los escenarios, DER/persistencia formal y publicar los cambios antes de iniciar la auditoría final de Semana 1.
+Crear el documento formal de validación 3×4 y preparar la defensa de Semana 3.

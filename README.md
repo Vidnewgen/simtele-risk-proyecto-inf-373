@@ -20,10 +20,11 @@ Plataforma web integrada para el análisis, simulación y cuantificación de rie
   - **Infraestructura con Docker:** Base de datos **PostgreSQL 17**, API REST automática con **PostgREST**, y panel de administración **Adminer**, todo orquestado con `docker-compose`.
   - **Vista Principal (`HomeView`):** Panel de inicio con las cuatro tarjetas de los módulos obligatorios del sistema.
   - **Módulo 2 — Deterioro Mecánico y Mantenimiento (`Module2View`):** Escenarios `NORMAL`, `ESTRÉS` y `MAL CONDICIONADO`, Jacobi, Gauss-Seidel, LU y gradiente conjugado, raíz cuadrática de deterioro y métricas de error. Ahora con persistencia real en PostgreSQL y gráficos interactivos.
-  - **Módulo 1 — Detención:** bisección, trapecio y RK4 con referencia analítica.
-  - **Módulo 3 — Oscilaciones por viento:** sistema RK4 y evaluación de desplazamiento y energía.
-  - **Módulo 4 — Sensores:** reconstrucción por Lagrange y error respecto a puntos ocultos.
-  - **Motor numérico (`domain/math/`):** Módulos de álgebra lineal (`linear.ts`) y búsqueda de raíces (`roots.ts`) con análisis de errores.
+  - **Módulo 1 — Detención:** bisección, trapecio, Simpson, Romberg, RK2/RK4, dos gráficas y CRUD PostgreSQL independiente.
+  - **Módulo 3 — Oscilaciones por viento:** sistema RK2/RK4, integración, referencia libre subamortiguada, dos gráficas y CRUD PostgreSQL independiente.
+  - **Módulo 4 — Sensores:** comparación de Lagrange, Newton por diferencias divididas y spline cúbico natural, dos gráficas y CRUD PostgreSQL independiente.
+  - **Servicios independientes:** M1, M3 y M4 tienen motor y caso de uso propios; comparten únicamente el adaptador de persistencia PostgREST.
+  - **Motor numérico (`domain/math/`):** Álgebra lineal (`linear.ts`), raíces (`roots.ts`), integración (`numerical.ts`) e interpolación (`interpolation.ts`) con pruebas.
 
 ---
 
@@ -43,15 +44,30 @@ simtele-risk/
     │   └── math/                        # Motor numérico transversal
     │       ├── linear.ts                # Jacobi, Gauss-Seidel, LU, gradiente conjugado
     │       ├── roots.ts                 # Bisección, Newton, secante
-    │       └── errors.ts               # Funciones de cálculo de error
+    │       ├── errors.ts                # Funciones de cálculo de error
+    │       ├── numerical.ts             # Trapecio, Simpson, Romberg, RK2 y RK4
+    │       └── interpolation.ts         # Lagrange, Newton-DD y spline cúbico
     ├── application/                     # Casos de uso y servicios de datos
     │   ├── use-cases/
-    │   │   └── module2.use-cases.ts     # Casos de uso del Módulo 2
+    │   │   ├── module1.use-cases.ts     # Casos de uso independientes del Módulo 1
+    │   │   ├── module2.use-cases.ts     # Casos de uso independientes del Módulo 2
+    │   │   ├── module3.use-cases.ts     # Casos de uso independientes del Módulo 3
+    │   │   ├── module4.use-cases.ts     # Casos de uso independientes del Módulo 4
+    │   │   └── module-run.use-cases.ts  # CRUD compartido de infraestructura
     │   ├── services/
-    │   │   └── module2.engine.ts        # Motor de simulación del Módulo 2
+    │   │   ├── module1.engine.ts        # Motor independiente del Módulo 1
+    │   │   ├── module2.engine.ts        # Motor independiente del Módulo 2
+    │   │   ├── module3.engine.ts        # Motor independiente del Módulo 3
+    │   │   └── module4.engine.ts        # Motor independiente del Módulo 4
     │   ├── ports/
-    │   │   └── module2.port.ts          # Interfaz/contrato del adaptador
+    │   │   ├── module1.port.ts          # Parámetros independientes del Módulo 1
+    │   │   ├── module2.port.ts          # Interfaz/contrato del Módulo 2
+    │   │   ├── module3.port.ts          # Parámetros independientes del Módulo 3
+    │   │   ├── module4.port.ts          # Parámetros independientes del Módulo 4
+    │   │   └── module-run.port.ts       # Interfaz de persistencia compartida
     │   └── persistence/
+    │       ├── module-run.types.ts      # Snapshot y resumen persistible
+    │       └── module-run.use-cases.ts  # Casos de uso de persistencia compartida
     ├── infrastructure/                  # Adaptadores y base de datos
     │   ├── database/
     │   │   ├── postgrest.client.ts      # Cliente HTTP genérico para PostgREST
@@ -60,14 +76,18 @@ simtele-risk/
     │   │       ├── 002_seed_catalogs.sql
     │   │       ├── 003_api_permissions.sql
     │   │       ├── 004_seed_module2.sql
-    │   │       └── 005_module2_week2.sql
+    │   │       ├── 005_module2_week2.sql
+    │   │       └── 006_week2_modules_parameters.sql
+    │   ├── module-run.postgrest.adapter.ts # Adaptador CRUD compartido M1/M3/M4
     │   ├── module2.postgrest.adapter.ts # Adaptador real (PostgreSQL vía PostgREST)
     │   └── module2.mock.adapter.ts      # Adaptador mock (datos en memoria)
     ├── presentation/                    # Capa de interfaz gráfica (Vue 3)
     │   ├── views/
     │   │   ├── HomeView.vue             # Panel principal con los 4 casos de estudio
-    │   │   ├── module2.vue              # Simulador y tablas del Módulo 2
-    │   │   └── module-model.vue         # Vistas dinámicas de los módulos 1, 3 y 4
+    │   │   ├── module1.vue              # Pantalla independiente del Módulo 1
+    │   │   ├── module2.vue              # Pantalla independiente del Módulo 2
+    │   │   ├── module3.vue              # Pantalla independiente del Módulo 3
+    │   │   └── module4.vue              # Pantalla independiente del Módulo 4
     │   ├── components/
     │   │   ├── LineChart.vue            # Componente de gráficos interactivos
     │   │   └── chart.types.ts           # Tipos para gráficos

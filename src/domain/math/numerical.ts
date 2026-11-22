@@ -264,6 +264,64 @@ export function simpson13(f: (x: number) => number, lower: number, upper: number
   return h * sum / 3
 }
 
+export interface RombergResult {
+  value: number
+  table: number[][]
+  iterations: number
+  converged: boolean
+  absoluteError: number | null
+}
+
+export function romberg(
+  f: (x: number) => number,
+  lower: number,
+  upper: number,
+  levels = 8,
+  tolerance = 1e-10,
+): RombergResult {
+  if (!Number.isFinite(lower) || !Number.isFinite(upper) || !Number.isFinite(tolerance)) {
+    return { value: Number.NaN, table: [], iterations: 0, converged: false, absoluteError: null }
+  }
+  if (lower === upper) {
+    return { value: 0, table: [[0]], iterations: 1, converged: true, absoluteError: 0 }
+  }
+  if (!Number.isInteger(levels) || levels < 1) {
+    return { value: Number.NaN, table: [], iterations: 0, converged: false, absoluteError: null }
+  }
+
+  const table: number[][] = Array.from({ length: levels }, () => Array(levels).fill(0))
+  table[0][0] = (upper - lower) * (f(lower) + f(upper)) / 2
+
+  let converged = false
+  let iterations = 1
+  for (let row = 1; row < levels; row++) {
+    iterations = row + 1
+    const intervals = 2 ** row
+    const h = (upper - lower) / intervals
+    let oddPointSum = 0
+    for (let point = 1; point < intervals; point += 2) {
+      oddPointSum += f(lower + point * h)
+    }
+    table[row][0] = table[row - 1][0] / 2 + h * oddPointSum
+
+    for (let column = 1; column <= row; column++) {
+      const factor = 4 ** column
+      table[row][column] =
+        table[row][column - 1]
+        + (table[row][column - 1] - table[row - 1][column - 1]) / (factor - 1)
+    }
+
+    if (Math.abs(table[row][row] - table[row - 1][row - 1]) <= tolerance) {
+      converged = true
+      break
+    }
+  }
+
+  const valueRow = iterations - 1
+  const value = table[valueRow][valueRow]
+  return { value, table: table.slice(0, iterations), iterations, converged, absoluteError: null }
+}
+
 export function rk2(
   derivative: (t: number, state: number[]) => number[],
   initial: number[],
