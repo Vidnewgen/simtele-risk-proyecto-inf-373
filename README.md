@@ -44,8 +44,7 @@ src/
 │       ├── module2.vue              # Simulador y tablas del Módulo 2
 │       ├── module1.vue              # Pantalla dedicada del Módulo 1
 │       ├── module3.vue              # Pantalla dedicada del Módulo 3
-│       ├── module4.vue              # Pantalla dedicada del Módulo 4
-│       └── module-model.vue         # Implementación compartida de los módulos 1, 3 y 4
+│       └── module4.vue              # Pantalla dedicada del Módulo 4
 ├── router/
 │   └── index.ts                     # Configuración de rutas SPA
 ├── App.vue
