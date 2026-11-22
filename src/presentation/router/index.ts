@@ -32,19 +32,7 @@ const router = createRouter({
       path: '/modulo-4',
       name: 'module4',
       component: Module4View,
-    },
-    {
-      path: '/modulo/1',
-      redirect: '/modulo-1',
-    },
-    {
-      path: '/modulo/3',
-      redirect: '/modulo-3',
-    },
-    {
-      path: '/modulo/4',
-      redirect: '/modulo-4',
-    },
+    }
   ],
 })
 
