@@ -7,7 +7,8 @@ import NumericalChart, { type ChartSeries } from '../components/NumericalChart.v
 
 const route = useRoute()
 const router = useRouter()
-const moduleId = computed(() => Number(route.params.moduleId))
+const props = defineProps<{ moduleId?: number }>()
+const moduleId = computed(() => props.moduleId ?? Number(route.params.moduleId))
 const selected = ref<'NORMAL' | 'ESTRES' | 'MAL_CONDICIONADO'>('NORMAL')
 
 const scenario = computed<ScenarioParameters>(() => ({

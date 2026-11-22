@@ -30,6 +30,7 @@
 - Implementado el umbral cuadrático del módulo 2 y probado con los tres escenarios.
 - Añadida gráfica compartida de presentación numérica con ejes, cuadrícula, leyenda y marcas de umbral.
 - Añadida curva cuadrática y comparación de iteraciones al módulo 2.
+- Separadas las pantallas de los módulos 1, 3 y 4 en archivos Vue dedicados, reutilizando la implementación compartida sin cambiar el comportamiento.
 - Mejorada la presentación del módulo 2 con tarjetas de métricas, fórmula destacada y tabla con estados visuales.
 - La gráfica del módulo 1 cambia con cada escenario mediante tiempo de detención y parámetros reales.
 - Las rutas `/`, `/modulo-2`, `/modulo/1`, `/modulo/3` y `/modulo/4` respondieron HTTP 200 en producción.
