@@ -10,6 +10,7 @@ import {
   residualNorm,
   rk2,
   rk4,
+  romberg,
   sensitivityEstimate,
   simpson13,
   trapezoidal,
@@ -64,6 +65,12 @@ describe('raíces e integración', () => {
   it('integra x² con trapecio y Simpson', () => {
     expect(trapezoidal(value => value * value, 0, 1, 1000)).toBeCloseTo(1 / 3, 5)
     expect(simpson13(value => value * value, 0, 1, 100)).toBeCloseTo(1 / 3, 8)
+  })
+
+  it('integra x² con Romberg y converge a la referencia', () => {
+    const result = romberg(value => value * value, 0, 1, 8, 1e-10)
+    expect(result.converged).toBe(true)
+    expect(result.value).toBeCloseTo(1 / 3, 10)
   })
 })
 
